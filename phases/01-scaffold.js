@@ -1,6 +1,6 @@
 // phases/01-scaffold.js — Create Vite+React scaffold, insert app code, create migrations
 
-import { mkdirSync, existsSync, cpSync, writeFileSync, readdirSync } from 'node:fs'
+import { mkdirSync, existsSync, cpSync, writeFileSync, readdirSync, statSync } from 'node:fs'
 import { join, basename } from 'node:path'
 import { logger } from '../lib/logger.js'
 import { exec, spawn } from '../lib/exec.js'
@@ -170,6 +170,9 @@ export async function runScaffold(inputs) {
 
   // 1a. Create Vite+React project
   if (existsSync(appDir)) {
+    if (!statSync(appDir).isDirectory()) {
+      throw new Error(`App directory path points to a file, not a directory: ${appDir}\nDid you mean to use this as the source code path instead?`)
+    }
     logger.warn(`Directory already exists: ${appDir}`)
     const ok = await confirm(`Continue and use existing directory?`)
     if (!ok) throw new Error('Scaffold aborted — directory exists.')
@@ -203,11 +206,16 @@ export async function runScaffold(inputs) {
   if (codePath && existsSync(codePath)) {
     logger.step(`Inserting app code from ${codePath}`)
     const srcDest = join(appDir, 'src')
-    const entries = readdirSync(codePath, { withFileTypes: true })
-    for (const entry of entries) {
-      const src = join(codePath, entry.name)
-      const dest = join(srcDest, entry.name)
-      cpSync(src, dest, { recursive: true })
+    if (statSync(codePath).isDirectory()) {
+      const entries = readdirSync(codePath, { withFileTypes: true })
+      for (const entry of entries) {
+        const src = join(codePath, entry.name)
+        const dest = join(srcDest, entry.name)
+        cpSync(src, dest, { recursive: true })
+      }
+    } else {
+      // Single file — copy it directly into src/
+      cpSync(codePath, join(srcDest, basename(codePath)))
     }
     logger.success('App code inserted into src/')
   }
