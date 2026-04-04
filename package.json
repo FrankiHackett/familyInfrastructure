@@ -1,0 +1,12 @@
+{
+  "name": "household-app-infrastructure",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Household App Infrastructure bootstrap agent",
+  "bin": {
+    "bootstrap": "./bootstrap.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

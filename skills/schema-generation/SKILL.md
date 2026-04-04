@@ -1,0 +1,217 @@
+---
+name: schema-generation
+description: This skill should be used when the user asks to "generate a schema", "create a migration", "design a table", "add a Supabase table", "create database schema", "scaffold data model", or describes a new data storage need for a Household App Infrastructure app. Turns a natural language description into a complete Supabase migration with TypeScript types.
+version: 1.0.0
+allowed-tools: [Read, Glob, Grep, Bash, Write]
+---
+
+# Schema Generation
+
+Transforms a natural language description of data needs into a complete, production-ready Supabase migration for the Household App Infrastructure household infrastructure.
+
+## When This Skill Applies
+
+Activate when the user:
+- Describes data they need to store for an app
+- Asks to generate or design a database schema
+- Asks to create a Supabase migration
+- Wants TypeScript types for a new data structure
+- Mentions needing a table, entity, or data model
+
+## Required Inputs
+
+Before generating, confirm:
+1. **App name** — determines the Postgres schema namespace (e.g., `triathlon`, `budget`, `groceries`)
+2. **Ownership model** — one of `personal`, `shared`, or `partner` (see Ownership Models below)
+3. **Entities** — the data the user described
+
+If any are missing, ask before proceeding.
+
+---
+
+## Generation Process
+
+### Step 1 — Infer Schema from Description
+
+Read the user's description carefully. If app code already exists, use Glob and Grep to scan it:
+- Look for `fetch`, `supabase.from(`, TypeScript interfaces, and API route handlers
+- Identify entities, relationships, and access patterns
+- See `references/schema-inference.md` for detailed patterns
+
+### Step 2 — Select Postgres Schema Namespace
+
+Every Household App Infrastructure app gets its own Postgres schema (not `public`). Use the app name as the schema:
+
+```sql
+CREATE SCHEMA IF NOT EXISTS triathlon;
+```
+
+All tables must be namespaced: `triathlon.sessions`, `triathlon.workouts`, etc.
+
+### Step 3 — Apply Ownership Model
+
+Determine RLS policies based on ownership model. See `references/ownership-models.md` for full policy templates.
+
+| Model | Description | `user_id` Column | RLS Filter |
+|---|---|---|---|
+| `personal` | Single user owns all rows | `uuid NOT NULL` | `auth.uid() = user_id` |
+| `shared` | All household members can access | `uuid NOT NULL` (creator) | Join against `public.household_members` |
+| `partner` | Locked to a specific partner user | `uuid NOT NULL` (owner) + `partner_id uuid` | `auth.uid() = user_id OR auth.uid() = partner_id` |
+
+### Step 4 — Generate Migration File
+
+Output a single migration file named: `{timestamp}_{snake_case_description}.sql`
+
+Every table must include these standard columns:
+
+```sql
+CREATE TABLE {schema}.{table_name} (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id       uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  updated_at    timestamptz NOT NULL DEFAULT now()
+  -- ... domain columns
+);
+```
+
+Always include:
+- `updated_at` trigger using `moddatetime` extension
+- Index on `user_id`
+- Index on `created_at` for pagination queries
+- Additional indexes for any foreign keys or high-frequency filter columns
+
+#### Full Migration Structure
+
+```sql
+-- ============================================================
+-- Migration: {description}
+-- Schema:    {app_schema}
+-- Ownership: {ownership_model}
+-- Generated: {timestamp}
+-- ============================================================
+
+-- 1. Schema
+CREATE SCHEMA IF NOT EXISTS {app_schema};
+
+-- 2. Extensions (if not already enabled)
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS moddatetime;
+
+-- 3. Tables
+CREATE TABLE {app_schema}.{table_name} (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  -- domain columns here
+);
+
+-- 4. Indexes
+CREATE INDEX idx_{table_name}_user_id ON {app_schema}.{table_name}(user_id);
+CREATE INDEX idx_{table_name}_created_at ON {app_schema}.{table_name}(created_at DESC);
+
+-- 5. Updated-at trigger
+CREATE TRIGGER set_{table_name}_updated_at
+  BEFORE UPDATE ON {app_schema}.{table_name}
+  FOR EACH ROW EXECUTE FUNCTION moddatetime(updated_at);
+
+-- 6. Enable RLS
+ALTER TABLE {app_schema}.{table_name} ENABLE ROW LEVEL SECURITY;
+
+-- 7. RLS Policies (see ownership-models.md for per-model templates)
+
+-- 8. Grant schema usage to authenticated role
+GRANT USAGE ON SCHEMA {app_schema} TO authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA {app_schema} TO authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA {app_schema} TO authenticated;
+```
+
+### Step 5 — Generate TypeScript Types
+
+Generate a `database.types.ts` file alongside the migration. See `references/postgres-typescript-types.md` for the full type mapping table.
+
+```typescript
+// database.types.ts — {app_name}
+// Auto-generated by schema-generation skill — do not edit manually
+
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export interface Database {
+  {app_schema}: {
+    Tables: {
+      {table_name}: {
+        Row: {
+          id: string               // uuid
+          user_id: string          // uuid
+          created_at: string       // timestamptz
+          updated_at: string       // timestamptz
+          // ... domain fields
+        }
+        Insert: {
+          id?: string              // optional — defaults to gen_random_uuid()
+          user_id: string
+          created_at?: string
+          updated_at?: string
+          // ... domain fields
+        }
+        Update: Partial<{table_name}['Insert']>
+      }
+    }
+    Views: Record<string, never>
+    Functions: Record<string, never>
+    Enums: Record<string, never>
+  }
+}
+```
+
+### Step 6 — Generate Supabase Client Helper
+
+Generate a typed client helper at `lib/supabase/{app_name}.ts`:
+
+```typescript
+// lib/supabase/{app_name}.ts
+import { createClient } from '@supabase/supabase-js'
+import type { Database } from '@/database.types'
+
+// Reads from environment variables — never hardcode these values
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Missing Supabase environment variables')
+}
+
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+
+// Typed table helper
+export const db = {
+  {table_name}: () => supabase.schema('{app_schema}').from('{table_name}'),
+}
+```
+
+---
+
+## Output Checklist
+
+Before finishing, verify:
+- [ ] Schema namespace matches app name (not `public`)
+- [ ] Every table has `id uuid`, `user_id uuid`, `created_at timestamptz`, `updated_at timestamptz`
+- [ ] RLS is enabled and policies match the declared ownership model
+- [ ] Indexes on `user_id` and `created_at` at minimum
+- [ ] `moddatetime` trigger on `updated_at`
+- [ ] TypeScript types generated with correct mappings
+- [ ] Supabase client helper reads URL and key from environment variables only
+- [ ] Migration file is named with a timestamp prefix
+
+## References
+
+- `references/postgres-typescript-types.md` — Postgres → TypeScript type mapping table
+- `references/ownership-models.md` — Full RLS policy templates for all three ownership models
+- `references/schema-inference.md` — How to read existing app code to infer schema needs
+- `references/rls-patterns.md` — Additional RLS patterns and edge cases
