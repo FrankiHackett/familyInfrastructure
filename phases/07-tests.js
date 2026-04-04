@@ -51,6 +51,17 @@ export default defineConfig({
   // ── playwright.config.ts ──────────────────────────────────────────────────
   write('playwright.config.ts', `import { defineConfig, devices } from '@playwright/test'
 
+// When PLAYWRIGHT_BASE_URL is set (e.g. pointing at a live Vercel deployment),
+// skip the local dev server — there's nothing to spin up locally.
+const localWebServer = process.env.PLAYWRIGHT_BASE_URL ? {} : {
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:5173',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
+}
+
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: true,
@@ -66,12 +77,7 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-  },
+  ...localWebServer,
 })
 `)
 

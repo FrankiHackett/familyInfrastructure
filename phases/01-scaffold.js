@@ -266,6 +266,16 @@ export async function runScaffold(inputs) {
   writeFileSync(join(appDir, '.env.local.template'), envTemplate, 'utf-8')
   logger.success('.env.local.template written')
 
+  // 1g. Verify the scaffold compiles (exits cleanly unlike `npm run dev`)
+  logger.step('Verifying scaffold builds...')
+  try {
+    await exec('npm run build', { cwd: appDir })
+    logger.success('Build passed')
+  } catch (err) {
+    logger.warn(`Build check failed: ${err.message.split('\n')[0]}`)
+    logger.info('  Fix build errors before proceeding, or continue and resolve later.')
+  }
+
   logger.success(`Phase 1 complete — ${appDir}`)
   return { appDir, schema, migrationFile: inputs._migrationFile || null }
 }
