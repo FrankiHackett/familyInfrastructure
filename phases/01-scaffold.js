@@ -1,6 +1,6 @@
 // phases/01-scaffold.js — Create Vite+React scaffold, insert app code, create migrations
 
-import { mkdirSync, existsSync, cpSync, writeFileSync, readdirSync, statSync } from 'node:fs'
+import { mkdirSync, existsSync, cpSync, writeFileSync, readdirSync, statSync, realpathSync } from 'node:fs'
 import { join, basename, sep } from 'node:path'
 import { logger } from '../lib/logger.js'
 import { exec, spawn } from '../lib/exec.js'
@@ -204,12 +204,27 @@ export async function runScaffold(inputs) {
     logger.step(`Inserting app code from ${codePath}`)
     const srcDest = join(appDir, 'src')
     if (statSync(codePath).isDirectory()) {
+      // Never copy non-source directories. node_modules/.bin symlinks point back
+      // to the project root's node_modules, so cpSync resolves src === dest and
+      // throws EINVAL. Build output dirs are similarly unsafe and never needed.
+      const NON_SOURCE_DIRS = new Set([
+        'node_modules', '.git', 'dist', 'build', '.next',
+        'coverage', 'playwright-report', 'test-results',
+      ])
       const entries = readdirSync(codePath, { withFileTypes: true })
       for (const entry of entries) {
+        if (NON_SOURCE_DIRS.has(entry.name)) {
+          logger.warn(`Skipping '${entry.name}' — not source code`)
+          continue
+        }
         const src = join(codePath, entry.name)
         const dest = join(srcDest, entry.name)
-        // Skip if copying would place a directory inside itself
-        if (dest === src || dest.startsWith(src + sep)) {
+        // Skip if copying would place a directory inside itself.
+        // Resolve symlinks first so symlinked codePaths that point into appDir
+        // are caught even when the string paths don't match literally.
+        const realSrc  = (() => { try { return realpathSync(src)  } catch { return src  } })()
+        const realDest = (() => { try { return realpathSync(dest) } catch { return dest } })()
+        if (realDest === realSrc || realDest.startsWith(realSrc + sep)) {
           logger.warn(`Skipping '${entry.name}' — would copy a directory into itself`)
           continue
         }
