@@ -1,4 +1,19 @@
 {
-  "apps": [],
-  "last_updated": null
+  "apps": [
+    {
+      "name": "activity-planner",
+      "schema_namespace": "activity_planner",
+      "owner": "primary",
+      "services": [],
+      "access_model": "shared",
+      "subdomain": "activity-planner.moonbear.app",
+      "protected_url": "https://activity-planner.moonbear.app",
+      "vercel_project_id": "prj_ZRbL5rfcpD0Mq6thuZIvjo0iCeYf",
+      "github_repo": "FrankiHackett/activity-planner",
+      "cloudflare_access_app": "2cb805f5-709c-42a0-a9cd-78ba5cdb5aee",
+      "code_path": "/home/hacke/apps/activity-planner",
+      "bootstrapped_at": "2026-04-05T12:48:07.558Z"
+    }
+  ],
+  "last_updated": "2026-04-05T12:48:07.559Z"
 }

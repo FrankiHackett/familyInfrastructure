@@ -190,7 +190,7 @@ export async function runScaffold(inputs) {
   const baseDevDeps = [
     'vitest', '@vitest/coverage-v8', '@vitejs/plugin-react',
     '@testing-library/react', '@testing-library/user-event',
-    'msw', '@playwright/test',
+    'msw', '@playwright/test', 'jsdom',
   ]
   if (services.includes('anthropic')) baseDeps.push('@anthropic-ai/sdk')
   if (services.includes('resend'))    baseDeps.push('resend')
