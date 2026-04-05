@@ -18,6 +18,15 @@ const SKIP_DIRS = new Set([
   'playwright-report', 'test-results',
 ])
 
+// Specific filenames to skip — lock files contain only package hashes and are
+// irrelevant to privacy auditing but are extremely token-heavy (SHA-512 base64
+// strings tokenise at ~1–2 chars/token, easily consuming tens of thousands of
+// tokens from the model's context window).
+const SKIP_FILES = new Set([
+  'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'composer.lock',
+  'Gemfile.lock', 'poetry.lock', 'Cargo.lock',
+])
+
 /**
  * Recursively collect all scannable files under rootDir.
  */
@@ -30,7 +39,7 @@ function collectFiles(rootDir) {
       if (SKIP_DIRS.has(entry.name)) continue
       const full = join(dir, entry.name)
       if (entry.isDirectory()) { walk(full); continue }
-      if (SCAN_EXTENSIONS.has(extname(entry.name))) files.push(full)
+      if (SCAN_EXTENSIONS.has(extname(entry.name)) && !SKIP_FILES.has(entry.name)) files.push(full)
     }
   }
   walk(rootDir)
@@ -137,7 +146,9 @@ async function runLlmScan(cfg, appDir) {
   }
 
   if (!response.ok) {
-    logger.warn(`Pass 2: Anthropic API returned ${response.status} — LLM scan skipped`)
+    const errBody = await response.json().catch(() => null)
+    const errMsg = errBody?.error?.message ?? (errBody ? JSON.stringify(errBody) : null)
+    logger.warn(`Pass 2: Anthropic API returned ${response.status}${errMsg ? ` — ${errMsg}` : ''} — LLM scan skipped`)
     return []
   }
 
