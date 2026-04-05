@@ -24,8 +24,19 @@ export async function runVerify(cfg, inputs, appDir, vercelProjectId, protectedU
 
   logger.success(`Deployment READY: ${deployment.url ? 'https://' + deployment.url : 'deployed'}`)
 
+  // ── Run Vitest unit/integration tests ────────────────────────────────────
+  logger.step('Running Vitest unit/integration tests...')
+  try {
+    await exec('npm run test:run', { cwd: appDir })
+    logger.success('Vitest tests passed')
+  } catch (err) {
+    logger.warn('Vitest tests failed — fix before deploying.')
+    logger.info(err.message.split('\n')[0])
+    return { verified: false, deploymentUrl: deployment.url }
+  }
+
   // ── Run Playwright smoke tests against the protected URL ──────────────────
-  logger.step(`Running smoke tests against ${protectedUrl}`)
+  logger.step(`Running Playwright smoke tests against ${protectedUrl}`)
 
   try {
     await exec(
@@ -38,10 +49,10 @@ export async function runVerify(cfg, inputs, appDir, vercelProjectId, protectedU
         },
       }
     )
-    logger.success('Smoke tests passed')
+    logger.success('Playwright smoke tests passed')
     return { verified: true, deploymentUrl: deployment.url }
   } catch (err) {
-    logger.warn('Smoke tests failed against live deployment.')
+    logger.warn('Playwright smoke tests failed against live deployment.')
     logger.info('  This may be expected if Cloudflare Access is blocking unauthenticated requests.')
     logger.info('  Check Playwright report: npx playwright show-report')
     logger.info(err.message.split('\n')[0])
