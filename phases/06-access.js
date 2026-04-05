@@ -16,23 +16,27 @@ export async function runAccess(cfg, inputs, vercelDeploymentUrl, iface) {
   // handshake then fails with "unable to establish an SSL connection".
   const cnameTarget = 'cname.vercel-dns.com'
 
-  // ── DNS Record ────────────────────────────────────────────────────────────
-  logger.step(`Configuring DNS: ${subdomain} → ${cnameTarget}`)
+  // ── DNS Record (unproxied first so Vercel can verify) ────────────────────
+  // Cloudflare proxy (orange cloud) hides the CNAME target from Vercel's
+  // domain verification check, causing permanent "Invalid Configuration".
+  // Solution: create unproxied → wait for Vercel to verify → switch to proxied.
+  logger.step(`Configuring DNS: ${subdomain} → ${cnameTarget} (unproxied for Vercel verification)`)
 
   const existing = await cloudflare.findDnsRecord(cfg, subdomain)
+  let dnsRecordId
 
   if (existing) {
-    if (existing.content === cnameTarget) {
-      logger.info(`  DNS record already correct — skipping`)
+    dnsRecordId = existing.id
+    if (existing.content === cnameTarget && !existing.proxied) {
+      logger.info(`  DNS record already unproxied and correct — skipping`)
     } else {
-      logger.warn(`  Existing record points to: ${existing.content}`)
-      logger.step(`  Updating to: ${cnameTarget}`)
-      await cloudflare.updateDnsRecord(cfg, existing.id, cnameTarget)
-      logger.success('DNS record updated')
+      await cloudflare.updateDnsRecord(cfg, existing.id, cnameTarget, { proxied: false })
+      logger.success('DNS record updated (unproxied)')
     }
   } else {
-    await cloudflare.createDnsRecord(cfg, { name: subdomain, content: cnameTarget })
-    logger.success(`DNS CNAME created (proxied): ${subdomain} → ${cnameTarget}`)
+    const record = await cloudflare.createDnsRecord(cfg, { name: subdomain, content: cnameTarget, proxied: false })
+    dnsRecordId = record.id
+    logger.success(`DNS CNAME created (unproxied): ${subdomain} → ${cnameTarget}`)
   }
 
   // ── Access Application ────────────────────────────────────────────────────
@@ -69,14 +73,21 @@ export async function runAccess(cfg, inputs, vercelDeploymentUrl, iface) {
     logger.success('Household access policy attached')
   }
 
-  // ── Result ────────────────────────────────────────────────────────────────
+  // ── Wait for Vercel verification, then enable Cloudflare proxy ───────────
   const protectedUrl = `https://${subdomain}`
-  logger.success(`Phase 4.5 complete — protected URL: ${protectedUrl}`)
 
-  logger.info(`Vercel domain check: confirm ${subdomain} is verified in Vercel before continuing.`)
-  logger.info(`  Vercel → your project → Settings → Domains → look for a green checkmark next to ${subdomain}`)
-  logger.info('  (The domain was added automatically in Phase 4. If it shows "Invalid Configuration", it is still working — this clears on its own.)')
-  await confirm(`Press y once ${subdomain} shows as verified in Vercel to continue`, iface)
+  logger.info('')
+  logger.info(`Vercel must verify the domain before proxy can be enabled.`)
+  logger.info(`  Vercel → ${inputs.appName} project → Settings → Domains`)
+  logger.info(`  Wait for a green checkmark next to ${subdomain}, then press y.`)
+  await confirm(`Press y once ${subdomain} shows as verified in Vercel`, iface)
+
+  logger.step('Enabling Cloudflare proxy (orange cloud)...')
+  await cloudflare.updateDnsRecord(cfg, dnsRecordId, cnameTarget, { proxied: true })
+  logger.success('Cloudflare proxy enabled')
+
+  // ── Result ────────────────────────────────────────────────────────────────
+  logger.success(`Phase 4.5 complete — protected URL: ${protectedUrl}`)
 
   return { subdomain, protectedUrl, accessAppId: accessApp.id }
 }
