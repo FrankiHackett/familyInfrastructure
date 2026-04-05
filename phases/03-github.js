@@ -70,9 +70,9 @@ export async function runGithub(cfg, inputs, appDir) {
   await exec('git checkout main', { cwd: appDir })
   logger.success('dev branch created and pushed')
 
-  // 2f. Remove token from remote URL (replace with plain HTTPS)
-  // Keeps the token out of git config after bootstrap
-  await exec(`git remote set-url origin https://github.com/${repoFull}.git`, { cwd: appDir })
+  // 2f. Switch remote to SSH now that the token push is done
+  // Keeps the token out of git config and allows subsequent pushes without credentials
+  await exec(`git remote set-url origin git@github.com:${repoFull}.git`, { cwd: appDir })
 
   logger.success(`Phase 2 complete — https://github.com/${repoFull}`)
   return { repoFull, repoUrl: `https://github.com/${repoFull}` }
