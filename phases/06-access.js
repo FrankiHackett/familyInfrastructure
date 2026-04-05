@@ -79,8 +79,10 @@ export async function runAccess(cfg, inputs, vercelDeploymentUrl, iface) {
   logger.info('')
   logger.info(`Vercel must verify the domain before proxy can be enabled.`)
   logger.info(`  Vercel → ${inputs.appName} project → Settings → Domains`)
-  logger.info(`  Wait for a green checkmark next to ${subdomain}, then press y.`)
-  await confirm(`Press y once ${subdomain} shows as verified in Vercel`, iface)
+  logger.info(`  You will see a yellow "DNS change recommended" warning — this is expected and will`)
+  logger.info(`  resolve itself once the agent re-enables the Cloudflare proxy after you press y.`)
+  logger.info(`  Wait for the domain to show a green tick (SSL certificate issued), then press y.`)
+  await confirm(`Press y once ${subdomain} shows a green tick in Vercel`, iface)
 
   logger.step('Enabling Cloudflare proxy (orange cloud)...')
   await cloudflare.updateDnsRecord(cfg, dnsRecordId, cnameTarget, { proxied: true })
