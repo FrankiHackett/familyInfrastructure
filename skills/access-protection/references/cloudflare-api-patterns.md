@@ -189,23 +189,26 @@ Used during rollback.
 
 ### List Policies for an App (GET)
 
-```
-GET /client/v4/accounts/{account_id}/access/apps/{app_id}/policies
-```
-
-### Attach a Reusable Policy to an App (POST)
-
-Use this when the household policy already exists as a reusable policy:
+Read policies from the app object itself — the `/policies` sub-endpoint does not support reusable policy references correctly:
 
 ```
-POST /client/v4/accounts/{account_id}/access/apps/{app_id}/policies
+GET /client/v4/accounts/{account_id}/access/apps/{app_id}
+```
+
+Policies are in `result.policies` as `[{ id, precedence }]`.
+
+### Attach a Reusable Policy to an App (PATCH)
+
+Use PATCH on the app itself with a `policies` array — do NOT POST to the `/policies` sub-endpoint, which only handles inline policies and rejects requests missing `include` rules:
+
+```
+PATCH /client/v4/accounts/{account_id}/access/apps/{app_id}
 ```
 
 Request body:
 ```json
 {
-  "precedence": 1,
-  "reusable_policy_id": "{CF_ACCESS_POLICY_ID}"
+  "policies": [{ "id": "{CF_ACCESS_POLICY_ID}", "precedence": 1 }]
 }
 ```
 

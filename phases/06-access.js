@@ -57,8 +57,7 @@ export async function runAccess(cfg, inputs, vercelDeploymentUrl, iface) {
   }
 
   const alreadyAttached = Array.isArray(policies) && policies.some(
-    p => p.id === cfg.cloudflare.access_policy_id ||
-         p.reusable_policy?.id === cfg.cloudflare.access_policy_id
+    p => p.id === cfg.cloudflare.access_policy_id
   )
 
   if (alreadyAttached) {
