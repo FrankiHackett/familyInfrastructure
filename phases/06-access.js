@@ -71,10 +71,10 @@ export async function runAccess(cfg, inputs, vercelDeploymentUrl, iface) {
   const protectedUrl = `https://${subdomain}`
   logger.success(`Phase 4.5 complete — protected URL: ${protectedUrl}`)
 
-  logger.warn('ACTION REQUIRED: Add this domain in Vercel before continuing.')
-  logger.info(`  Vercel → your project → Settings → Domains → Add: ${subdomain}`)
-  logger.info('  Phase 6 will run smoke tests against this URL — it must be configured first.')
-  await confirm(`Press y once you've added ${subdomain} in Vercel to continue`, iface)
+  logger.info(`Vercel domain check: confirm ${subdomain} is verified in Vercel before continuing.`)
+  logger.info(`  Vercel → your project → Settings → Domains → look for a green checkmark next to ${subdomain}`)
+  logger.info('  (The domain was added automatically in Phase 4. If it shows "Invalid Configuration", it is still working — this clears on its own.)')
+  await confirm(`Press y once ${subdomain} shows as verified in Vercel to continue`, iface)
 
   return { subdomain, protectedUrl, accessAppId: accessApp.id }
 }
