@@ -1,7 +1,7 @@
 // phases/01-scaffold.js — Create Vite+React scaffold, insert app code, create migrations
 
 import { mkdirSync, existsSync, cpSync, writeFileSync, readdirSync, statSync } from 'node:fs'
-import { join, basename } from 'node:path'
+import { join, basename, sep } from 'node:path'
 import { logger } from '../lib/logger.js'
 import { exec, spawn } from '../lib/exec.js'
 
@@ -208,6 +208,11 @@ export async function runScaffold(inputs) {
       for (const entry of entries) {
         const src = join(codePath, entry.name)
         const dest = join(srcDest, entry.name)
+        // Skip if copying would place a directory inside itself
+        if (dest === src || dest.startsWith(src + sep)) {
+          logger.warn(`Skipping '${entry.name}' — would copy a directory into itself`)
+          continue
+        }
         cpSync(src, dest, { recursive: true })
       }
     } else {
