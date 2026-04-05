@@ -135,7 +135,7 @@ async function runLlmScan(cfg, appDir) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 2048,
+        max_tokens: 8192,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: parts.join('\n\n') }],
       }),
@@ -153,7 +153,11 @@ async function runLlmScan(cfg, appDir) {
   }
 
   const data = await response.json()
-  const text = data.content?.[0]?.text ?? '[]'
+  let text = data.content?.[0]?.text ?? '[]'
+
+  // Strip markdown code fences if the model wrapped the JSON despite instructions
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/)
+  if (fenceMatch) text = fenceMatch[1].trim()
 
   try {
     const findings = JSON.parse(text)
