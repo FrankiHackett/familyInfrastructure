@@ -151,7 +151,12 @@ export const server = setupServer(${handlerSpread})
 
   // ── Commit test scaffold ──────────────────────────────────────────────────
   await exec('git add -A', { cwd: appDir })
-  await exec(`git commit -m "feat: add smoke test scaffold for ${appName}"`, { cwd: appDir })
+  const { stdout: staged } = await exec('git diff --cached --name-only', { cwd: appDir })
+  if (staged) {
+    await exec(`git commit -m "feat: add smoke test scaffold for ${appName}"`, { cwd: appDir })
+  } else {
+    logger.info('  Nothing new to commit — test scaffold already present')
+  }
 
   logger.success(`Phase 5 complete — ${files.length} test files generated`)
   return { testFiles: files }
