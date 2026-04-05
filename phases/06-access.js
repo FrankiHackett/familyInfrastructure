@@ -10,9 +10,11 @@ export async function runAccess(cfg, inputs, vercelDeploymentUrl, iface) {
   const { appName } = inputs
   const subdomain   = `${appName}.${cfg.cloudflare.household_domain}`
 
-  // The Vercel deployment URL is the CNAME target.
-  // If no deployment URL yet, use the Vercel default for the project.
-  const cnameTarget = vercelDeploymentUrl || `${appName}.vercel.app`
+  // Vercel custom domains behind Cloudflare proxy must CNAME to cname.vercel-dns.com.
+  // Pointing at a *.vercel.app deployment URL causes SSL errors because that cert
+  // only covers *.vercel.app, not the custom subdomain — Cloudflare's origin SSL
+  // handshake then fails with "unable to establish an SSL connection".
+  const cnameTarget = 'cname.vercel-dns.com'
 
   // ── DNS Record ────────────────────────────────────────────────────────────
   logger.step(`Configuring DNS: ${subdomain} → ${cnameTarget}`)
