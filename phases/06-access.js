@@ -2,8 +2,9 @@
 
 import { logger } from '../lib/logger.js'
 import { cloudflare } from '../lib/api.js'
+import { confirm } from '../lib/prompt.js'
 
-export async function runAccess(cfg, inputs, vercelDeploymentUrl) {
+export async function runAccess(cfg, inputs, vercelDeploymentUrl, iface) {
   logger.phase('4.5', 'Access Protection')
 
   const { appName } = inputs
@@ -71,8 +72,10 @@ export async function runAccess(cfg, inputs, vercelDeploymentUrl) {
   const protectedUrl = `https://${subdomain}`
   logger.success(`Phase 4.5 complete — protected URL: ${protectedUrl}`)
 
-  logger.warn('Manual step: Add this domain in Vercel dashboard if not already done.')
+  logger.warn('ACTION REQUIRED: Add this domain in Vercel before continuing.')
   logger.info(`  Vercel → your project → Settings → Domains → Add: ${subdomain}`)
+  logger.info('  Phase 6 will run smoke tests against this URL — it must be configured first.')
+  await confirm(`Press y once you've added ${subdomain} in Vercel to continue`, iface)
 
   return { subdomain, protectedUrl, accessAppId: accessApp.id }
 }

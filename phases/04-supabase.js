@@ -7,7 +7,7 @@ import { logger } from '../lib/logger.js'
 import { exec, toolExists } from '../lib/exec.js'
 import { confirm } from '../lib/prompt.js'
 
-export async function runSupabase(cfg, inputs, appDir) {
+export async function runSupabase(cfg, inputs, appDir, iface) {
   logger.phase('3', 'Supabase')
 
   if (!inputs.services.includes('supabase')) {
@@ -35,7 +35,7 @@ export async function runSupabase(cfg, inputs, appDir) {
 
   // 3b. Confirm before applying to live project
   logger.warn(`This will apply the migration to Supabase project: ${projectRef}`)
-  const ok = await confirm('Apply migration to live Supabase project?')
+  const ok = await confirm('Apply migration to live Supabase project?', iface)
   if (!ok) throw new Error('Supabase migration cancelled by user.')
 
   // 3c. Initialise supabase project structure (idempotent)

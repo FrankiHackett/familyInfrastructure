@@ -4,7 +4,6 @@ import { mkdirSync, existsSync, cpSync, writeFileSync, readdirSync, statSync } f
 import { join, basename } from 'node:path'
 import { logger } from '../lib/logger.js'
 import { exec, spawn } from '../lib/exec.js'
-import { openInEditor, confirm } from '../lib/prompt.js'
 
 // Generate a timestamp prefix for the migration file
 function migrationTimestamp() {
@@ -173,9 +172,7 @@ export async function runScaffold(inputs) {
     if (!statSync(appDir).isDirectory()) {
       throw new Error(`App directory path points to a file, not a directory: ${appDir}\nDid you mean to use this as the source code path instead?`)
     }
-    logger.warn(`Directory already exists: ${appDir}`)
-    const ok = await confirm(`Continue and use existing directory?`)
-    if (!ok) throw new Error('Scaffold aborted — directory exists.')
+    logger.warn(`Directory already exists — using it: ${appDir}`)
   } else {
     logger.step(`Creating Vite+React project at ${appDir}`)
     const parentDir = join(appDir, '..')
@@ -235,10 +232,9 @@ export async function runScaffold(inputs) {
     writeFileSync(migrationFile, sql, 'utf-8')
     logger.success(`Migration file created: supabase/migrations/${basename(migrationFile)}`)
 
-    // Open for review
+    // Remind user to review before Phase 3 applies it
     logger.warn('Review and edit the migration before it is applied in Phase 3.')
-    const edit = await confirm(`Open migration in $EDITOR now?`)
-    if (edit) await openInEditor(migrationFile)
+    logger.info(`  Migration file: ${migrationFile}`)
 
     inputs._migrationFile = migrationFile
   }

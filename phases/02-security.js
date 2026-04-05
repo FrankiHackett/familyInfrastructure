@@ -2,10 +2,9 @@
 
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, extname } from 'node:path'
-import { createInterface } from 'node:readline/promises'
-import { stdin as rlInput, stdout as rlOutput } from 'node:process'
 import { logger } from '../lib/logger.js'
 import { exec, toolExists } from '../lib/exec.js'
+import { confirm } from '../lib/prompt.js'
 
 // File extensions to scan for text content
 const SCAN_EXTENSIONS = new Set([
@@ -84,19 +83,6 @@ function runStringsScan(cfg, appDir) {
   }
 
   return findings
-}
-
-/**
- * Prompt the user for a yes/no answer. Returns true for 'y'.
- */
-async function promptYesNo(question) {
-  const rl = createInterface({ input: rlInput, output: rlOutput })
-  try {
-    const answer = await rl.question(`  ${question} [y/N] `)
-    return answer.trim().toLowerCase() === 'y'
-  } finally {
-    rl.close()
-  }
 }
 
 /**
@@ -258,7 +244,7 @@ async function runGitleaks(appDir) {
   }
 }
 
-export async function runSecurity(cfg, appDir) {
+export async function runSecurity(cfg, appDir, iface) {
   logger.phase('1.5', 'Security')
 
   let blocked = false
@@ -301,7 +287,7 @@ export async function runSecurity(cfg, appDir) {
 
     for (const f of medium) {
       logger.warn(`Pass 2 [medium] ${f.file}:${f.line} — ${f.reason}`)
-      const keep = await promptYesNo('Allow this and continue?')
+      const keep = await confirm('Allow this and continue?', iface)
       if (!keep) {
         logger.error(`  Blocked by user review: ${f.file}:${f.line}`)
         blocked = true
@@ -347,7 +333,12 @@ export async function runSecurity(cfg, appDir) {
 
   // ── Result ────────────────────────────────────────────────────────────────
   if (blocked) {
-    throw new Error('Phase 1.5 blocked — resolve personal data findings before continuing.')
+    logger.block('Security findings detected — review the issues listed above.')
+    logger.raw('  Fix: replace flagged values with environment variables before deploying.')
+    logger.raw('  See skills/personal-data-protection/references/remediation-guide.md')
+    const proceed = await confirm('Continue bootstrap despite security findings?', iface)
+    if (!proceed) throw new Error('Bootstrap aborted by user after security review.')
+    logger.warn('Continuing with security findings — resolve before merging to main.')
   }
 
   logger.success('Phase 1.5 complete — security checks passed')

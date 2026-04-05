@@ -10,7 +10,7 @@
 import { loadConfig }    from './lib/config.js'
 import { logger }        from './lib/logger.js'
 import { upsertApp }     from './lib/manifest.js'
-import { collectBootstrapInputs } from './lib/prompt.js'
+import { createReadline, collectBootstrapInputs } from './lib/prompt.js'
 import { runMigrate }    from './commands/migrate.js'
 import { runUpdate }     from './commands/update.js'
 import { runScaffold }   from './phases/01-scaffold.js'
@@ -43,70 +43,78 @@ if (cmd === 'migrate') {
 async function runBootstrap(cfg) {
   printBanner()
 
-  // Collect interactive inputs
-  const inputs = await collectBootstrapInputs(cfg)
+  // Single readline interface for the entire bootstrap session.
+  // Never closed mid-run — only in the finally block below.
+  const iface = createReadline()
 
-  // Accumulate results across phases for the final summary
-  const results = {}
+  try {
+    // Collect interactive inputs
+    const inputs = await collectBootstrapInputs(cfg, iface)
 
-  // ── Phase 1: Scaffold ─────────────────────────────────────────────────────
-  const { appDir, migrationFile } = await runScaffold(inputs)
-  // Thread migration file explicitly so Phase 3 has a guaranteed reference
-  if (migrationFile) inputs._migrationFile = migrationFile
+    // Accumulate results across phases for the final summary
+    const results = {}
 
-  // ── Phase 1.5: Security ───────────────────────────────────────────────────
-  await runSecurity(cfg, appDir)
+    // ── Phase 1: Scaffold ───────────────────────────────────────────────────
+    const { appDir, migrationFile } = await runScaffold(inputs)
+    // Thread migration file explicitly so Phase 3 has a guaranteed reference
+    if (migrationFile) inputs._migrationFile = migrationFile
 
-  // ── Phase 2: GitHub ───────────────────────────────────────────────────────
-  const { repoFull, repoUrl } = await runGithub(cfg, inputs, appDir)
-  results.repoFull = repoFull
-  results.repoUrl  = repoUrl
+    // ── Phase 1.5: Security ─────────────────────────────────────────────────
+    await runSecurity(cfg, appDir, iface)
 
-  // ── Phase 3: Supabase (conditional) ──────────────────────────────────────
-  if (inputs.services.includes('supabase')) {
-    await runSupabase(cfg, inputs, appDir)
-  } else {
-    logger.phase('3', 'Supabase')
-    logger.info('Supabase not in services — Phase 3 skipped')
+    // ── Phase 2: GitHub ─────────────────────────────────────────────────────
+    const { repoFull, repoUrl } = await runGithub(cfg, inputs, appDir)
+    results.repoFull = repoFull
+    results.repoUrl  = repoUrl
+
+    // ── Phase 3: Supabase (conditional) ────────────────────────────────────
+    if (inputs.services.includes('supabase')) {
+      await runSupabase(cfg, inputs, appDir, iface)
+    } else {
+      logger.phase('3', 'Supabase')
+      logger.info('Supabase not in services — Phase 3 skipped')
+    }
+
+    // ── Phase 4: Vercel ─────────────────────────────────────────────────────
+    const { projectId, subdomain } = await runVercel(cfg, inputs, appDir, repoFull)
+    results.projectId = projectId
+    results.subdomain = subdomain
+
+    // ── Phase 4.5: Access Protection ───────────────────────────────────────
+    // Use the Vercel project's default URL as the CNAME target for now.
+    // Vercel assigns a stable URL of the form <project-name>.vercel.app
+    const vercelTarget = `${inputs.appName}.vercel.app`
+    const { protectedUrl, accessAppId } = await runAccess(cfg, inputs, vercelTarget, iface)
+    results.protectedUrl = protectedUrl
+    results.accessAppId  = accessAppId
+
+    // ── Phase 5: Tests ──────────────────────────────────────────────────────
+    await runTests(cfg, inputs, appDir)
+
+    // ── Phase 6: Verify ─────────────────────────────────────────────────────
+    const { verified } = await runVerify(cfg, inputs, appDir, projectId, protectedUrl)
+    results.verified = verified
+
+    // ── Update apps-manifest.json ───────────────────────────────────────────
+    upsertApp({
+      name:                  inputs.appName,
+      schema_namespace:      inputs.appName.replace(/-/g, '_'),
+      owner:                 inputs.owner,
+      services:              inputs.services,
+      access_model:          inputs.accessModel,
+      subdomain,
+      protected_url:         protectedUrl,
+      vercel_project_id:     projectId,
+      github_repo:           repoFull,
+      cloudflare_access_app: accessAppId,
+      code_path:             appDir,
+    })
+
+    // ── Final Summary ───────────────────────────────────────────────────────
+    printSummary(inputs, results)
+  } finally {
+    iface.close()
   }
-
-  // ── Phase 4: Vercel ───────────────────────────────────────────────────────
-  const { projectId, subdomain } = await runVercel(cfg, inputs, appDir, repoFull)
-  results.projectId = projectId
-  results.subdomain = subdomain
-
-  // ── Phase 4.5: Access Protection ─────────────────────────────────────────
-  // Use the Vercel project's default URL as the CNAME target for now.
-  // Vercel assigns a stable URL of the form <project-name>.vercel.app
-  const vercelTarget = `${inputs.appName}.vercel.app`
-  const { protectedUrl, accessAppId } = await runAccess(cfg, inputs, vercelTarget)
-  results.protectedUrl = protectedUrl
-  results.accessAppId  = accessAppId
-
-  // ── Phase 5: Tests ────────────────────────────────────────────────────────
-  await runTests(cfg, inputs, appDir)
-
-  // ── Phase 6: Verify ───────────────────────────────────────────────────────
-  const { verified } = await runVerify(cfg, inputs, appDir, projectId, protectedUrl)
-  results.verified = verified
-
-  // ── Update apps-manifest.json ─────────────────────────────────────────────
-  upsertApp({
-    name:                  inputs.appName,
-    schema_namespace:      inputs.appName.replace(/-/g, '_'),
-    owner:                 inputs.owner,
-    services:              inputs.services,
-    access_model:          inputs.accessModel,
-    subdomain,
-    protected_url:         protectedUrl,
-    vercel_project_id:     projectId,
-    github_repo:           repoFull,
-    cloudflare_access_app: accessAppId,
-    code_path:             appDir,
-  })
-
-  // ── Final Summary ─────────────────────────────────────────────────────────
-  printSummary(inputs, results)
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
