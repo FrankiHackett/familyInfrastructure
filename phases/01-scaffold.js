@@ -213,7 +213,12 @@ export async function runScaffold(inputs) {
     } else {
       // Single file — copy it into src/ and wire it into App.tsx
       const filename = basename(codePath)
-      cpSync(codePath, join(srcDest, filename))
+      const destFile = join(srcDest, filename)
+      if (existsSync(destFile)) {
+        logger.warn(`Code file already exists at destination — skipping copy: ${filename}`)
+      } else {
+        cpSync(codePath, destFile, { dereference: true })
+      }
 
       // Derive the import path (strip extension for the import statement)
       const ext = filename.slice(filename.lastIndexOf('.'))
