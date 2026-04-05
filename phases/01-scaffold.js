@@ -226,17 +226,25 @@ export async function runScaffold(inputs) {
 
   // 1e. Generate initial migration (only if supabase)
   if (services.includes('supabase')) {
-    const ts = migrationTimestamp()
-    const migrationFile = join(migrationsDir, `${ts}_init_${schema}.sql`)
-    const sql = buildMigrationSql(inputs)
-    writeFileSync(migrationFile, sql, 'utf-8')
-    logger.success(`Migration file created: supabase/migrations/${basename(migrationFile)}`)
+    // Avoid creating a duplicate if re-running after a partial bootstrap
+    const existingInit = readdirSync(migrationsDir).find(f => f.endsWith(`_init_${schema}.sql`))
+    if (existingInit) {
+      const migrationFile = join(migrationsDir, existingInit)
+      logger.warn(`Migration file already exists — reusing: supabase/migrations/${existingInit}`)
+      inputs._migrationFile = migrationFile
+    } else {
+      const ts = migrationTimestamp()
+      const migrationFile = join(migrationsDir, `${ts}_init_${schema}.sql`)
+      const sql = buildMigrationSql(inputs)
+      writeFileSync(migrationFile, sql, 'utf-8')
+      logger.success(`Migration file created: supabase/migrations/${basename(migrationFile)}`)
 
-    // Remind user to review before Phase 3 applies it
-    logger.warn('Review and edit the migration before it is applied in Phase 3.')
-    logger.info(`  Migration file: ${migrationFile}`)
+      // Remind user to review before Phase 3 applies it
+      logger.warn('Review and edit the migration before it is applied in Phase 3.')
+      logger.info(`  Migration file: ${migrationFile}`)
 
-    inputs._migrationFile = migrationFile
+      inputs._migrationFile = migrationFile
+    }
   }
 
   // 1f. Initialise git

@@ -83,10 +83,15 @@ export async function runSupabase(cfg, inputs, appDir, iface) {
 
   // 3f. Commit generated files
   await exec('git add -A', { cwd: appDir })
-  await exec(
-    `git commit -m "feat: add supabase types and client for ${schema}"`,
-    { cwd: appDir }
-  )
+  const { stdout: statusOut } = await exec('git status --porcelain', { cwd: appDir })
+  if (statusOut) {
+    await exec(
+      `git commit -m "feat: add supabase types and client for ${schema}"`,
+      { cwd: appDir }
+    )
+  } else {
+    logger.info('Nothing new to commit — skipping supabase commit')
+  }
 
   logger.success(`Phase 3 complete — schema: ${schema}`)
   return { schema, projectRef }
