@@ -197,12 +197,15 @@ GET /client/v4/accounts/{account_id}/access/apps/{app_id}
 
 Policies are in `result.policies` as `[{ id, precedence }]`.
 
-### Attach a Reusable Policy to an App (PATCH)
+### Attach a Reusable Policy to an App (PUT)
 
-Use PATCH on the app itself with a `policies` array — do NOT POST to the `/policies` sub-endpoint, which only handles inline policies and rejects requests missing `include` rules:
+Use PUT on the app itself with a `policies` array — do NOT POST to the `/policies` sub-endpoint, which only handles inline policies and rejects requests missing `include` rules. PATCH is not supported for this authentication scheme.
+
+GET the app first, then PUT the full object back with the `policies` field set — a partial body will overwrite other app settings:
 
 ```
-PATCH /client/v4/accounts/{account_id}/access/apps/{app_id}
+GET /client/v4/accounts/{account_id}/access/apps/{app_id}
+PUT /client/v4/accounts/{account_id}/access/apps/{app_id}
 ```
 
 Request body:
