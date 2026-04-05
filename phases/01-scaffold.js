@@ -211,8 +211,23 @@ export async function runScaffold(inputs) {
         cpSync(src, dest, { recursive: true })
       }
     } else {
-      // Single file — copy it directly into src/
-      cpSync(codePath, join(srcDest, basename(codePath)))
+      // Single file — copy it into src/ and wire it into App.tsx
+      const filename = basename(codePath)
+      cpSync(codePath, join(srcDest, filename))
+
+      // Derive the import path (strip extension for the import statement)
+      const ext = filename.slice(filename.lastIndexOf('.'))
+      const moduleName = filename.slice(0, filename.lastIndexOf('.'))
+      const isJsx = ext === '.jsx'
+
+      // Rewrite App.tsx to render the component directly
+      const tsExpect = isJsx ? '// @ts-expect-error — jsx file has no type declarations\n' : ''
+      writeFileSync(
+        join(srcDest, 'App.tsx'),
+        `${tsExpect}import ${moduleName.replace(/-([a-z])/g, (_, c) => c.toUpperCase())} from './${moduleName}'\n\nexport default function App() {\n  return <${moduleName.replace(/-([a-z])/g, (_, c) => c.toUpperCase())} />\n}\n`,
+        'utf-8'
+      )
+      logger.success(`App.tsx wired to import ${filename}`)
     }
     logger.success('App code inserted into src/')
   }
