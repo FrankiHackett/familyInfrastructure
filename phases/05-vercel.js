@@ -27,10 +27,17 @@ export async function runVercel(cfg, inputs, appDir, repoFull, iface) {
 
   const projectId = project.id
 
-  // 4b. Collect any app-specific env vars not yet in config, then inject
-  await collectAppEnvVars(cfg, inputs.appName, iface)
-  logger.step('Injecting environment variables...')
+  // 4b. Inject environment variables
+  // Show the standard vars first so the user knows what's already covered,
+  // then ask if any app-specific additions are needed.
+  logger.step('Preparing environment variables...')
+  const standardVars = buildEnvVars(cfg, inputs)
+  logger.info('  Standard vars to be injected:')
+  for (const v of standardVars) logger.info(`    ${v.key}`)
 
+  await collectAppEnvVars(cfg, inputs.appName, iface)
+
+  logger.step('Injecting environment variables...')
   const envVars = buildEnvVars(cfg, inputs)
   let injected = 0
 
