@@ -44,7 +44,7 @@ export async function runVercel(cfg, inputs, appDir, repoFull) {
       if (err.message.includes('409') || err.message.toLowerCase().includes('already exists')) {
         logger.info(`  ~ ${ev.key} (already set)`)
       } else {
-        logger.warn(`  Failed to set ${ev.key}: ${err.message}`)
+        throw new Error(`Failed to set ${ev.key}: ${err.message}`)
       }
     }
   }
@@ -104,7 +104,7 @@ function buildEnvVars(cfg, inputs) {
         key:    'SUPABASE_SERVICE_ROLE_KEY',
         value:  cfg.supabase.service_role_key,
         target: ['production'],
-        type:   'secret',
+        type:   'encrypted',
       }
     )
   }
@@ -114,7 +114,7 @@ function buildEnvVars(cfg, inputs) {
       key:    'ANTHROPIC_API_KEY',
       value:  cfg.anthropic?.api_key || '',
       target: ['production'],
-      type:   'secret',
+      type:   'encrypted',
     })
   }
 
@@ -124,7 +124,7 @@ function buildEnvVars(cfg, inputs) {
         key:    'RESEND_API_KEY',
         value:  cfg.resend?.api_key || '',
         target: ['production'],
-        type:   'secret',
+        type:   'encrypted',
       },
       {
         key:    'RESEND_FROM_ADDRESS',
