@@ -27,8 +27,8 @@ import { runVerify, printSummary } from './phases/08-verify.js'
 const args = process.argv.slice(2)
 const cmd  = args[0]
 
-// Load and validate config first — all other operations depend on it
-const cfg = loadConfig()
+// Migrate/update need a complete config upfront; bootstrap collects missing values interactively.
+const cfg = loadConfig({ lenient: !cmd })
 
 if (cmd === 'migrate') {
   await runMigrate(cfg, args).catch(fatal)
