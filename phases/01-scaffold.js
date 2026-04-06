@@ -246,10 +246,13 @@ export async function runScaffold(inputs) {
       const isJsx = ext === '.jsx'
 
       // Rewrite App.tsx to render the component directly
+      // Must be PascalCase — JSX treats lowercase names as HTML intrinsic elements
+      const toPascal = s => s.replace(/-([a-z])/g, (_, c) => c.toUpperCase()).replace(/^[a-z]/, c => c.toUpperCase())
+      const componentName = toPascal(moduleName)
       const tsExpect = isJsx ? '// @ts-expect-error — jsx file has no type declarations\n' : ''
       writeFileSync(
         join(srcDest, 'App.tsx'),
-        `${tsExpect}import ${moduleName.replace(/-([a-z])/g, (_, c) => c.toUpperCase())} from './${moduleName}'\n\nexport default function App() {\n  return <${moduleName.replace(/-([a-z])/g, (_, c) => c.toUpperCase())} />\n}\n`,
+        `${tsExpect}import ${componentName} from './${moduleName}'\n\nexport default function App() {\n  return <${componentName} />\n}\n`,
         'utf-8'
       )
       logger.success(`App.tsx wired to import ${filename}`)
