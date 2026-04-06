@@ -76,7 +76,7 @@ async function runBootstrap(cfg) {
     }
 
     // ── Phase 4: Vercel ─────────────────────────────────────────────────────
-    const { projectId, subdomain } = await runVercel(cfg, inputs, appDir, repoFull)
+    const { projectId, subdomain } = await runVercel(cfg, inputs, appDir, repoFull, iface)
     results.projectId = projectId
     results.subdomain = subdomain
 

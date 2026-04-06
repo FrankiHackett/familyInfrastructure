@@ -2,8 +2,9 @@
 
 import { logger } from '../lib/logger.js'
 import { vercel } from '../lib/api.js'
+import { collectAppEnvVars } from '../lib/prompt.js'
 
-export async function runVercel(cfg, inputs, appDir, repoFull) {
+export async function runVercel(cfg, inputs, appDir, repoFull, iface) {
   logger.phase('4', 'Vercel')
 
   const { appName, services } = inputs
@@ -26,8 +27,8 @@ export async function runVercel(cfg, inputs, appDir, repoFull) {
 
   const projectId = project.id
 
-  // 4b. Inject environment variables
-  // All values come from config — never hardcoded
+  // 4b. Collect any app-specific env vars not yet in config, then inject
+  await collectAppEnvVars(cfg, inputs.appName, iface)
   logger.step('Injecting environment variables...')
 
   const envVars = buildEnvVars(cfg, inputs)
