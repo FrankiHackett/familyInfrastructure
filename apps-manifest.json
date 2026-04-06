@@ -30,7 +30,21 @@
       "cloudflare_access_app": "ff41ff18-a8dd-4191-b2a4-5050bd6d83ea",
       "code_path": "/home/hacke/apps/training-scheduler",
       "bootstrapped_at": "2026-04-06T12:51:01.514Z"
+    },
+    {
+      "name": "recipe-app",
+      "schema_namespace": "recipe_app",
+      "owner": "primary",
+      "services": [],
+      "access_model": "shared",
+      "subdomain": "recipe-app.moonbear.app",
+      "protected_url": "https://recipe-app.moonbear.app",
+      "vercel_project_id": "prj_na8b1uH0hYh6ZOOQNDALlbcZrhzf",
+      "github_repo": "FrankiHackett/recipe-app",
+      "cloudflare_access_app": "91631ef7-883d-4bc7-8cb4-e6f0df7f823d",
+      "code_path": "/home/hacke/apps/recipe-app",
+      "bootstrapped_at": "2026-04-06T19:53:52.967Z"
     }
   ],
-  "last_updated": "2026-04-06T12:51:01.514Z"
+  "last_updated": "2026-04-06T19:53:52.967Z"
 }
