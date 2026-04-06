@@ -179,7 +179,7 @@ export async function runScaffold(inputs) {
     mkdirSync(parentDir, { recursive: true })
     await spawn('npm', ['create', 'vite@latest', appName, '--', '--template', 'react-ts'], {
       cwd: parentDir,
-      env: { CI: '1' },
+      env: { CI: '1', npm_config_yes: 'true' },
     })
     logger.success('Vite project created')
   }
