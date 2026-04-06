@@ -69,7 +69,7 @@ export async function runSupabase(cfg, inputs, appDir, iface) {
   const typesFile = join(typesDir, 'database.types.ts')
 
   const { stdout: typesSql } = await exec(
-    `supabase gen types typescript --project-ref ${projectRef} --schema ${schema}`,
+    `supabase gen types typescript --project-id ${projectRef} --schema ${schema}`,
     { cwd: appDir, env: { SUPABASE_ACCESS_TOKEN: accessToken } }
   )
   writeFileSync(typesFile, typesSql, 'utf-8')

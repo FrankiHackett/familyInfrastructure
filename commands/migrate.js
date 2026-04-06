@@ -67,7 +67,7 @@ export async function runMigrate(cfg, argv) {
   const schema = appEntry.schema_namespace || appName.replace(/-/g, '_')
   logger.step('Regenerating TypeScript types...')
   const { stdout: typesOutput } = await exec(
-    `supabase gen types typescript --project-ref ${cfg.supabase.project_ref} --schema ${schema}`,
+    `supabase gen types typescript --project-id ${cfg.supabase.project_ref} --schema ${schema}`,
     { cwd: appDir, env: { SUPABASE_ACCESS_TOKEN: cfg.supabase.access_token } }
   )
   writeFileSync(join(appDir, 'src', 'types', 'database.types.ts'), typesOutput, 'utf-8')
