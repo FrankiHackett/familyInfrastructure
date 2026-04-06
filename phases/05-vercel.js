@@ -35,7 +35,7 @@ export async function runVercel(cfg, inputs, appDir, repoFull, iface) {
   logger.info('  Standard vars to be injected:')
   for (const v of standardVars) logger.info(`    ${v.key}`)
 
-  await collectAppEnvVars(cfg, inputs.appName, iface)
+  await collectAppEnvVars(cfg, inputs.appName, appDir, standardVars.map(v => v.key), iface)
 
   logger.step('Injecting environment variables...')
   const envVars = buildEnvVars(cfg, inputs)
